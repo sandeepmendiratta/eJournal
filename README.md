@@ -30,7 +30,7 @@ eJournal is a **free, open-source, local-first desktop trading journal**. Import
 - **Per-trade analysis** — candlestick chart (1/5/15-min intraday, or daily/weekly for swing trades) with your entries and exits plotted, a VWAP toggle, a transaction breakdown, and arrow-key navigation between trades.
 - **Sortable, filterable trade log** — every closed position with entry/exit times & prices, shares, P&L, fees, and hold duration. Click through to the chart.
 - **Drag-and-drop import** — drop a CSV, let eJournal auto-detect the broker, and preview parsed transactions before committing.
-- **Free market data** — Yahoo Finance daily bars work out of the box; add free Alpaca keys for 1-minute intraday bars on day trades.
+- **Free market data** — Yahoo Finance works out of the box for both daily bars and 1-minute intraday bars; add free Alpaca keys for extended-hours coverage and deeper intraday history on day trades.
 - **Local-first & private** — everything lives in a single SQLite file under `~/.ejournal`; API keys are stored with owner-only permissions on your machine.
 - **Light / dark / system themes.**
 
@@ -66,8 +66,8 @@ On **macOS / Linux**, build and run from source — see [Building from source](#
 
 Charts and unrealized P&L use OHLCV data fetched per imported trade — daily bars for swing trades, 1-minute bars for day trades. Two sources:
 
-- **Yahoo Finance (default, no setup).** Full daily history for daily bars. Works out of the box.
-- **Alpaca (optional, free).** Unlocks 1-minute history for day trades analysis. Create a free account at [alpaca.markets](https://alpaca.markets) (the paper/data API keys need no funding), then paste the Key ID and Secret Key into **Settings → Market Data** in the app. Follow the step 1 and step 2 on this guide for more details https://alpaca.markets/learn/connect-to-alpaca-api
+- **Yahoo Finance (default, no setup).** Full daily history for daily bars, plus 1-minute intraday bars for day trades (regular market hours only, trailing ~30 days). Works out of the box.
+- **Alpaca (optional, free).** Upgrades day-trade charts with extended-hours (pre/post-market) bars and deeper intraday history. Create a free account at [alpaca.markets](https://alpaca.markets) (the paper/data API keys need no funding), then paste the Key ID and Secret Key into **Settings → Market Data** in the app. Follow the step 1 and step 2 on this guide for more details https://alpaca.markets/learn/connect-to-alpaca-api
 
 Keys are stored only on your machine in `~/.ejournal/credentials.json` (owner-only permissions) and are sent to no one but Alpaca. Market data syncs automatically after each import and on app startup; use **Settings → Sync market data** to backfill manually after adding keys.
 

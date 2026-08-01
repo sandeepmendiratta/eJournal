@@ -28,7 +28,7 @@ data class SyncResult(
     val fetchedSymbols: Int,
     val failedSymbols: List<String>,
     val keysRejected: Boolean,
-    /** 1-min bars were needed but no Alpaca keys are configured — 1-min always requires Alpaca. */
+    /** Crypto 1-min bars were needed but no Alpaca keys are configured (stock 1-min falls back to Yahoo). */
     val needsKeys: Boolean,
 )
 

@@ -88,7 +88,7 @@ class MarketDataServiceTest {
         tx(portfolioId, symbol, Action.SELL, "2026-06-10T10:15"),
     )
 
-    /** A same-day round trip months ago: 1-min bars only Alpaca can serve. */
+    /** A same-day round trip months ago: 1-min bars prefer Alpaca, falling back to Yahoo without keys. */
     private fun oldDayTrade(portfolioId: Long = 1L, symbol: String = "AAPL") = listOf(
         tx(portfolioId, symbol, Action.BUY, "2026-01-05T09:31"),
         tx(portfolioId, symbol, Action.SELL, "2026-01-05T10:15"),
@@ -144,12 +144,15 @@ class MarketDataServiceTest {
     }
 
     @Test
-    fun `old day trade without keys is reported as needing keys and alpaca is not called`() = runTest {
+    fun `old day trade without keys falls back to yahoo for one-minute bars`() = runTest {
+        val yahoo = FakeProvider()
         val alpaca = FakeProvider()
-        val result = service(transactions = mapOf(1L to oldDayTrade()), alpaca = alpaca).sync()
+        val result = service(transactions = mapOf(1L to oldDayTrade()), yahoo = yahoo, alpaca = alpaca).sync()
 
         assertTrue(alpaca.calls.isEmpty())
-        assertTrue(result.needsKeys)
+        assertTrue(yahoo.calls.any { it.symbol == "AAPL" && it.timeframe == Timeframe.ONE_MINUTE })
+        assertTrue(!result.needsKeys)
+        assertEquals(1, result.fetchedSymbols)
     }
 
     @Test

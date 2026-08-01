@@ -24,9 +24,10 @@ import kotlinx.serialization.json.Json
  * Keyless provider backed by Yahoo's undocumented v8 chart API. Quirks this encodes:
  * requires a browser-like User-Agent; `range` silently coarsens granularity so requests
  * always use explicit period1/period2 and verify the returned granularity; its 1-min data
- * is capped at 8 days per request (chunked here) and only the trailing ~30 days. In this app
- * Yahoo serves daily bars only — all 1-min fetches route to Alpaca (Yahoo has no extended-hours
- * coverage), so 1-min always needs Alpaca keys regardless of the trade's age.
+ * is capped at 8 days per request (chunked here) and only the trailing ~30 days. Stock 1-min
+ * fetches prefer Alpaca (deeper SIP history, extended-hours bars) when keys are configured, and
+ * fall back to this provider otherwise -- so keyless 1-min charts have no pre/post-market bars
+ * and only cover the trailing ~30 days, but still work for recent day trades (see [route]).
  */
 class YahooFinanceProvider(private val client: HttpClient) : MarketDataProvider {
 

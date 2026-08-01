@@ -124,10 +124,13 @@ fun subtractCoverage(range: BarRange, coverage: BarCoverage?): List<BarRange> {
 /**
  * Picks the provider per range.
  *
- * Symmetric by timeframe: DAILY → Yahoo, 1-min → Alpaca; the crypto variants differ only in symbol
- * format. Crypto daily uses Yahoo because Alpaca's crypto history is shallow (~2021 onward, and many
- * altcoins are absent entirely), so older crypto trades have no daily data there — Yahoo has deep
- * crypto history and is keyless. Crypto 1-min still needs Alpaca (Yahoo has no deep intraday).
+ * DAILY → Yahoo always. Stock 1-min prefers Alpaca (deeper SIP history, extended-hours coverage) when
+ * keys are configured, but falls back to Yahoo rather than going unavailable -- Yahoo's chart API does
+ * serve `interval=1m` (see [YahooFinanceProvider]), just with regular-hours-only bars and only the
+ * trailing ~30 days, so keyless users still get *something* for recent day trades. Crypto daily uses
+ * Yahoo because Alpaca's crypto history is shallow (~2021 onward, and many altcoins are absent
+ * entirely) -- Yahoo has deep crypto history and is keyless. Crypto 1-min still needs Alpaca (Yahoo has
+ * no deep intraday crypto data, so there's no fallback worth falling back to).
  *
  * NOTE: daily-is-Yahoo-only is load-bearing. Yahoo (and the YahooCrypto wrapper around it) normalize
  * daily bar timestamps to the date so a calendar day maps to exactly one OhlcvBar row (deduped by the
@@ -142,6 +145,6 @@ fun route(range: BarRange, hasAlpacaKeys: Boolean): List<RoutedRange> {
         return listOf(RoutedRange(range, source))
     }
     if (range.timeframe == Timeframe.DAILY) return listOf(RoutedRange(range, BarSource.YAHOO))
-    val source = if (hasAlpacaKeys) BarSource.ALPACA else BarSource.UNAVAILABLE
+    val source = if (hasAlpacaKeys) BarSource.ALPACA else BarSource.YAHOO
     return listOf(RoutedRange(range, source))
 }

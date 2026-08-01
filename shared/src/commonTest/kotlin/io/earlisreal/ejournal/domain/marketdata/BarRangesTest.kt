@@ -195,11 +195,11 @@ class BarRangesTest {
     }
 
     @Test
-    fun `one-minute range is unavailable without keys regardless of age`() {
+    fun `one-minute range falls back to yahoo without keys regardless of age`() {
         val recent = BarRange("AAPL", Timeframe.ONE_MINUTE, LocalDate.parse("2026-06-10"), LocalDate.parse("2026-06-10"))
         val old    = BarRange("AAPL", Timeframe.ONE_MINUTE, LocalDate.parse("2026-01-05"), LocalDate.parse("2026-01-05"))
-        assertEquals(listOf(RoutedRange(recent, BarSource.UNAVAILABLE)), route(recent, hasAlpacaKeys = false))
-        assertEquals(listOf(RoutedRange(old,    BarSource.UNAVAILABLE)), route(old,    hasAlpacaKeys = false))
+        assertEquals(listOf(RoutedRange(recent, BarSource.YAHOO)), route(recent, hasAlpacaKeys = false))
+        assertEquals(listOf(RoutedRange(old,    BarSource.YAHOO)), route(old,    hasAlpacaKeys = false))
     }
 
     @Test
@@ -209,9 +209,9 @@ class BarRangesTest {
     }
 
     @Test
-    fun `old one-minute range is unavailable without keys`() {
+    fun `old one-minute range falls back to yahoo without keys`() {
         val range = BarRange("AAPL", Timeframe.ONE_MINUTE, LocalDate.parse("2026-01-05"), LocalDate.parse("2026-01-05"))
-        assertEquals(listOf(RoutedRange(range, BarSource.UNAVAILABLE)), route(range, hasAlpacaKeys = false))
+        assertEquals(listOf(RoutedRange(range, BarSource.YAHOO)), route(range, hasAlpacaKeys = false))
     }
 
     @Test
