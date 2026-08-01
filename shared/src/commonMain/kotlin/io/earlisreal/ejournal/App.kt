@@ -11,6 +11,7 @@ import io.earlisreal.ejournal.data.repository.PortfolioSettingsRepository
 import io.earlisreal.ejournal.data.repository.SettingsRepository
 import io.earlisreal.ejournal.data.repository.TransactionRepository
 import io.earlisreal.ejournal.data.repository.TagRepository
+import io.earlisreal.ejournal.domain.AssetClassTaggingService
 import io.earlisreal.ejournal.domain.PositionTagService
 import io.earlisreal.ejournal.domain.StartupSyncCoordinator
 import io.earlisreal.ejournal.domain.marketdata.AlpacaProvider
@@ -51,6 +52,7 @@ fun App(
     initialPortfolios: List<Portfolio>,
     positionTags: PositionTagService,
     tagRepository: TagRepository,
+    assetClassTagging: AssetClassTaggingService,
 ) {
     LaunchedEffect(Unit) { withContext(Dispatchers.IO) { startupSyncCoordinator.run() } }
 
@@ -79,6 +81,7 @@ fun App(
             Destination.TRADE_LOGS -> TradeLogsScreen(
                 positionTags = positionTags,
                 tagRepository = tagRepository,
+                assetClassTagging = assetClassTagging,
                 filter = filter,
                 onAnalyze = nav.onAnalyze,
             )

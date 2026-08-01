@@ -23,6 +23,7 @@ import io.earlisreal.ejournal.domain.marketdata.YahooCryptoProvider
 import io.earlisreal.ejournal.domain.marketdata.YahooFinanceProvider
 import io.earlisreal.ejournal.domain.marketdata.toBackgroundTask
 import io.earlisreal.ejournal.domain.ClosedPositionService
+import io.earlisreal.ejournal.domain.AssetClassTaggingService
 import io.earlisreal.ejournal.domain.PositionTagService
 import io.earlisreal.ejournal.domain.StartupSyncCoordinator
 import io.earlisreal.ejournal.domain.parser.EtoroXlsxParser
@@ -79,6 +80,7 @@ class AppDependencies {
 
     val closedPositionService = ClosedPositionService(transactionRepository, portfolioRepository)
     val positionTagService = PositionTagService(closedPositionService, tagRepository)
+    val assetClassTaggingService = AssetClassTaggingService(positionTagService, tagRepository)
 
     val alpacaProvider = AlpacaProvider(httpClient, credentialsRepository)
     val cryptoProvider = AlpacaCryptoProvider(httpClient, credentialsRepository)

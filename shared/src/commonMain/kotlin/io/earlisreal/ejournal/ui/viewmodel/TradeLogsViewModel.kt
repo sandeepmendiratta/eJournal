@@ -3,6 +3,7 @@ package io.earlisreal.ejournal.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.earlisreal.ejournal.data.repository.TagRepository
+import io.earlisreal.ejournal.domain.AssetClassTaggingService
 import io.earlisreal.ejournal.domain.PositionTagService
 import io.earlisreal.ejournal.domain.analytics.DateRange
 import io.earlisreal.ejournal.domain.analytics.Segment
@@ -33,6 +34,7 @@ data class TradeLogsState(
 class TradeLogsViewModel(
     private val positionTags: PositionTagService,
     private val tagRepository: TagRepository,
+    private val assetClassTagging: AssetClassTaggingService,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(TradeLogsState())
@@ -68,6 +70,7 @@ class TradeLogsViewModel(
         }
         _state.value = _state.value.copy(loading = true)
         loadJob = viewModelScope.launch(Dispatchers.Default) {
+            assetClassTagging.ensureTagged(portfolioId)
             val positions = positionTags.forPortfolio(portfolioId)
             val tags = tagRepository.getAll()
             filtered = filterByTags(filterPositions(positions, range, segment), selectedTagIds, tagMatch)

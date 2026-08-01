@@ -82,6 +82,7 @@ fun main(args: Array<String>) {
                         initialPortfolios = ready.portfolios,
                         positionTags = ready.deps.positionTagService,
                         tagRepository = ready.deps.tagRepository,
+                        assetClassTagging = ready.deps.assetClassTaggingService,
                     )
                 }
             }

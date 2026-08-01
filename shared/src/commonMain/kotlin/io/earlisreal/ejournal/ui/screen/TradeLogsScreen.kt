@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.earlisreal.ejournal.data.repository.TagRepository
+import io.earlisreal.ejournal.domain.AssetClassTaggingService
 import io.earlisreal.ejournal.domain.PositionTagService
 import io.earlisreal.ejournal.domain.model.ClosedPosition
 import io.earlisreal.ejournal.ui.components.AppTextButton
@@ -40,10 +41,11 @@ import io.earlisreal.ejournal.ui.viewmodel.TradeLogsViewModel
 fun TradeLogsScreen(
     positionTags: PositionTagService,
     tagRepository: TagRepository,
+    assetClassTagging: AssetClassTaggingService,
     filter: FilterState,
     onAnalyze: (ClosedPosition, List<ClosedPosition>) -> Unit = { _, _ -> },
 ) {
-    val vm = viewModel { TradeLogsViewModel(positionTags, tagRepository) }
+    val vm = viewModel { TradeLogsViewModel(positionTags, tagRepository, assetClassTagging) }
     val state by vm.state.collectAsState()
     var showTagManager by remember { mutableStateOf(false) }
 
