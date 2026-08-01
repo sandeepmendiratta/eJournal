@@ -56,3 +56,16 @@ fun ErrorBanner(message: String, modifier: Modifier = Modifier) {
             .padding(Spacing.md),
     )
 }
+
+@Composable
+fun SuccessBanner(message: String, modifier: Modifier = Modifier) {
+    Text(
+        message,
+        color = AppTheme.colors.profit,
+        style = MaterialTheme.typography.bodyMedium,
+        modifier = modifier
+            .fillMaxWidth()
+            .background(AppTheme.colors.profit.copy(alpha = 0.08f), ControlShape)
+            .padding(Spacing.md),
+    )
+}

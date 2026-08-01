@@ -30,6 +30,7 @@ import io.earlisreal.ejournal.ui.components.AppSecondaryButton
 import io.earlisreal.ejournal.ui.components.DataTable
 import io.earlisreal.ejournal.ui.components.EmptyState
 import io.earlisreal.ejournal.ui.components.ErrorBanner
+import io.earlisreal.ejournal.ui.components.SuccessBanner
 import io.earlisreal.ejournal.ui.components.Pill
 import io.earlisreal.ejournal.ui.components.ScreenScaffold
 import io.earlisreal.ejournal.ui.platform.pickImportFiles
@@ -159,6 +160,7 @@ fun ImportScreen(
                 )
 
                 (state.status as? ImportStatus.Error)?.let { ErrorBanner(it.message) }
+                (state.status as? ImportStatus.Success)?.let { SuccessBanner("Imported ${it.count} transaction(s).") }
 
                 state.detectionSummary?.let { summary ->
                     Text(
