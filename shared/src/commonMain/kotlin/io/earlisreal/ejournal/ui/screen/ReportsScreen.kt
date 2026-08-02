@@ -18,7 +18,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -170,25 +172,51 @@ fun ReportsScreen(
                     }
 
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        var chainFilter by remember { mutableStateOf(RollChainFilter.ALL) }
+                        var sortColumn by remember { mutableStateOf<Int?>(ROLL_CHAIN_FIRST_OPEN_COLUMN) }
+                        var sortAscending by remember { mutableStateOf(true) }
+
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                "Roll chains",
+                                color = AppTheme.colors.textPrimary,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            RollChainFilterToggle(chainFilter) { chainFilter = it }
+                        }
                         Text(
-                            "Roll chains",
-                            color = AppTheme.colors.textPrimary,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            "Sequences of 2+ option legs on the same underlying/side where a close was followed by a near-day reopen -- inferred from timing, not broker-labeled, so double-check anything surprising.",
+                            "Sequences of 2+ option legs on the same underlying/side where a close was followed by a near-day reopen -- inferred from timing, not broker-labeled, so double-check anything surprising. Click a column to sort.",
                             color = AppTheme.colors.textMuted,
                             style = MaterialTheme.typography.labelSmall,
                         )
-                        if (state.rollChains.isEmpty()) {
+                        val filteredChains = remember(state.rollChains, chainFilter) {
+                            when (chainFilter) {
+                                RollChainFilter.ALL -> state.rollChains
+                                RollChainFilter.OPEN -> state.rollChains.filter { it.isOpen }
+                                RollChainFilter.CLOSED -> state.rollChains.filter { !it.isOpen }
+                            }
+                        }
+                        if (filteredChains.isEmpty()) {
                             Text(
-                                "No roll chains detected.",
+                                if (state.rollChains.isEmpty()) "No roll chains detected."
+                                else "No ${chainFilter.label.lowercase()} roll chains.",
                                 color = AppTheme.colors.textMuted,
                                 style = MaterialTheme.typography.labelSmall,
                             )
                         } else {
                             RollChainsTable(
-                                state.rollChains, state.underlyingPrices, symbol,
+                                chains = filteredChains,
+                                underlyingPrices = state.underlyingPrices,
+                                symbol = symbol,
+                                sortColumn = sortColumn,
+                                sortAscending = sortAscending,
+                                onSort = { column ->
+                                    if (sortColumn == column) sortAscending = !sortAscending
+                                    else { sortColumn = column; sortAscending = true }
+                                },
                                 modifier = Modifier.fillMaxWidth().heightIn(max = TABLE_MAX_HEIGHT),
                             )
                         }
@@ -281,19 +309,80 @@ private fun ExpiringOptionsTable(
     )
 }
 
+private const val ROLL_CHAIN_FIRST_OPEN_COLUMN = 5
+
+private enum class RollChainFilter(val label: String) { ALL("All"), OPEN("Open"), CLOSED("Closed") }
+
+@Composable
+private fun RollChainFilterToggle(filter: RollChainFilter, onChange: (RollChainFilter) -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(PillShape)
+            .background(AppTheme.colors.surfaceElevated),
+    ) {
+        RollChainFilter.entries.forEach { option ->
+            val active = option == filter
+            Text(
+                text = option.label,
+                color = if (active) AppTheme.colors.onAccent else AppTheme.colors.textMuted,
+                fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(if (active) AppTheme.colors.accent else Color.Transparent)
+                    .clickable { onChange(option) }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        }
+    }
+}
+
+/** Column order must match [RollChainsTable]'s `columns` list -- indices below are what [onSort] receives. */
+private fun sortedRollChains(
+    chains: List<RollChain>,
+    column: Int?,
+    ascending: Boolean,
+    underlyingPrices: Map<String, Double>,
+): List<RollChain> {
+    if (column == null) return chains
+    val comparator: Comparator<RollChain> = when (column) {
+        0 -> compareBy { it.id }
+        1 -> compareBy { it.root }
+        2 -> compareBy { it.right }
+        3 -> compareBy { it.direction }
+        4 -> compareBy { it.legs.size }
+        5 -> compareBy { it.firstOpen }
+        6 -> compareBy { it.latestExpiry }
+        7 -> compareBy { it.isOpen }
+        8 -> compareBy { underlyingPrices[it.root] ?: Double.NEGATIVE_INFINITY }
+        9 -> compareBy { it.strikePath }
+        10 -> compareBy { it.realizedPnl }
+        11 -> compareBy { it.daysRunning }
+        else -> return chains
+    }
+    val sorted = chains.sortedWith(comparator)
+    return if (ascending) sorted else sorted.reversed()
+}
+
 @Composable
 private fun RollChainsTable(
     chains: List<RollChain>,
     underlyingPrices: Map<String, Double>,
     symbol: String,
+    sortColumn: Int?,
+    sortAscending: Boolean,
+    onSort: (Int) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val sorted = remember(chains, sortColumn, sortAscending, underlyingPrices) {
+        sortedRollChains(chains, sortColumn, sortAscending, underlyingPrices)
+    }
     DataTable(
         columns = listOf(
             "Chain", "Underlying", "Type", "Side", "Legs", "First Open", "Latest Exp",
             "Status", "Current Price", "Strike Path", "Realized P/L", "Days Running",
         ),
-        rows = chains,
+        rows = sorted,
         cells = { c ->
             listOf(
                 c.id,
@@ -313,6 +402,9 @@ private fun RollChainsTable(
         weights = remember {
             listOf(0.9f, 0.9f, 0.7f, 0.7f, 0.6f, 0.9f, 0.9f, 0.8f, 0.9f, 1.6f, 0.9f, 0.8f)
         },
+        sortedColumn = sortColumn,
+        sortAscending = sortAscending,
+        onHeaderClick = onSort,
         modifier = modifier,
     )
 }

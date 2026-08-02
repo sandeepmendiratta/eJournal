@@ -2,6 +2,7 @@ package io.earlisreal.ejournal.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -24,6 +25,9 @@ import io.earlisreal.ejournal.ui.theme.Spacing
  * Generic table. `columns` are header labels; `cells` provides each row's cell strings.
  * `weights` (optional) sets per-column flex; defaults to equal. `cellColor` (optional) overrides a
  * specific cell's text color (row, column index) -> color; return null for the default color.
+ * `onHeaderClick` (optional) makes column headers clickable -- pass it to let a caller drive sorting;
+ * `sortedColumn`/`sortAscending` (only meaningful together with `onHeaderClick`) show a ▲/▼ indicator
+ * on the active column. Rows are rendered in the order given -- sorting itself is the caller's job.
  */
 @Composable
 fun <T> DataTable(
@@ -33,6 +37,9 @@ fun <T> DataTable(
     modifier: Modifier = Modifier,
     weights: List<Float> = columns.map { 1f },
     cellColor: (T, Int) -> Color? = { _, _ -> null },
+    sortedColumn: Int? = null,
+    sortAscending: Boolean = true,
+    onHeaderClick: ((Int) -> Unit)? = null,
 ) {
     Column(
         modifier = modifier.border(1.dp, AppTheme.colors.border, CardShape)
@@ -44,11 +51,14 @@ fun <T> DataTable(
                 .padding(horizontal = Spacing.md, vertical = Spacing.sm)
         ) {
             columns.forEachIndexed { i, col ->
+                val label = if (i == sortedColumn) "$col ${if (sortAscending) "▲" else "▼"}" else col
                 Text(
-                    col,
-                    modifier = Modifier.weight(weights.getOrElse(i) { 1f }),
+                    label,
+                    modifier = Modifier
+                        .weight(weights.getOrElse(i) { 1f })
+                        .let { m -> if (onHeaderClick != null) m.clickable { onHeaderClick(i) } else m },
                     fontWeight = FontWeight.SemiBold,
-                    color = AppTheme.colors.textMuted,
+                    color = if (i == sortedColumn) AppTheme.colors.textPrimary else AppTheme.colors.textMuted,
                     style = MaterialTheme.typography.labelSmall,
                 )
             }
