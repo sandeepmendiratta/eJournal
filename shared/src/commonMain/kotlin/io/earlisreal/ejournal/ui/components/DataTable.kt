@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import io.earlisreal.ejournal.ui.theme.AppTheme
@@ -21,7 +22,8 @@ import io.earlisreal.ejournal.ui.theme.Spacing
 
 /**
  * Generic table. `columns` are header labels; `cells` provides each row's cell strings.
- * `weights` (optional) sets per-column flex; defaults to equal.
+ * `weights` (optional) sets per-column flex; defaults to equal. `cellColor` (optional) overrides a
+ * specific cell's text color (row, column index) -> color; return null for the default color.
  */
 @Composable
 fun <T> DataTable(
@@ -30,6 +32,7 @@ fun <T> DataTable(
     cells: (T) -> List<String>,
     modifier: Modifier = Modifier,
     weights: List<Float> = columns.map { 1f },
+    cellColor: (T, Int) -> Color? = { _, _ -> null },
 ) {
     Column(
         modifier = modifier.border(1.dp, AppTheme.colors.border, CardShape)
@@ -62,7 +65,7 @@ fun <T> DataTable(
                         Text(
                             cell,
                             modifier = Modifier.weight(weights.getOrElse(i) { 1f }),
-                            color = AppTheme.colors.textPrimary,
+                            color = cellColor(row, i) ?: AppTheme.colors.textPrimary,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }

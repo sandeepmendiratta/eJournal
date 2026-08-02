@@ -83,6 +83,7 @@ fun main(args: Array<String>) {
                         positionTags = ready.deps.positionTagService,
                         tagRepository = ready.deps.tagRepository,
                         assetClassTagging = ready.deps.assetClassTaggingService,
+                        openPositions = ready.deps.openPositionService,
                     )
                 }
             }
