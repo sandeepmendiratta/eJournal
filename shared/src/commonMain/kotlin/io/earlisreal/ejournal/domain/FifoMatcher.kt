@@ -2,6 +2,7 @@ package io.earlisreal.ejournal.domain
 
 import io.earlisreal.ejournal.domain.model.Action
 import io.earlisreal.ejournal.domain.model.ClosedPosition
+import io.earlisreal.ejournal.domain.model.OpenPosition
 import io.earlisreal.ejournal.domain.model.TradeDirection
 import io.earlisreal.ejournal.domain.model.Transaction
 import kotlinx.datetime.LocalDateTime
@@ -114,6 +115,61 @@ object FifoMatcher {
 
             // End of data: emit the realized portion of any still-open position.
             flush()
+        }
+
+        return result
+    }
+
+    /** An open lot carrying its fill time, for [computeOpenPositions] (unlike [Lot], which doesn't need one). */
+    private data class OpenLot(val price: Double, var remainingShares: Double, val datetime: LocalDateTime)
+
+    /**
+     * Symbols whose FIFO position is still open at the end of [transactions] (never returned to flat).
+     * Mirrors [computeClosedPositions]'s matching, but only cares about what's left in each symbol's
+     * open queue -- no P&L/fee tracking -- since this is for reports about currently-held positions
+     * (e.g. options approaching expiry), not realized performance.
+     */
+    fun computeOpenPositions(transactions: List<Transaction>): List<OpenPosition> {
+        val result = mutableListOf<OpenPosition>()
+
+        for ((symbol, symbolTxs) in transactions.groupBy { it.symbol }) {
+            val openQueue = ArrayDeque<OpenLot>()
+            var direction: TradeDirection? = null
+
+            for (tx in symbolTxs.sortedBy { it.datetime }) {
+                val txSide = if (tx.action == Action.BUY) TradeDirection.LONG else TradeDirection.SHORT
+                if (direction == null) direction = txSide
+
+                if (txSide == direction) {
+                    openQueue.addLast(OpenLot(tx.price, tx.shares, tx.datetime))
+                    continue
+                }
+
+                var remaining = tx.shares
+                while (remaining > 0.0 && openQueue.isNotEmpty()) {
+                    val lot = openQueue.first()
+                    val matched = minOf(remaining, lot.remainingShares)
+                    lot.remainingShares -= matched
+                    remaining -= matched
+                    if (lot.remainingShares <= 0.0) openQueue.removeFirst()
+                }
+
+                if (openQueue.isEmpty()) {
+                    direction = null
+                    if (remaining > 0.0) {
+                        direction = txSide
+                        openQueue.addLast(OpenLot(tx.price, remaining, tx.datetime))
+                    }
+                }
+            }
+
+            val openDirection = direction
+            if (openQueue.isNotEmpty() && openDirection != null) {
+                val totalShares = openQueue.sumOf { it.remainingShares }
+                val avgPrice = openQueue.sumOf { it.price * it.remainingShares } / totalShares
+                val earliest = openQueue.minOf { it.datetime }
+                result.add(OpenPosition(symbol, openDirection, totalShares, avgPrice, earliest))
+            }
         }
 
         return result

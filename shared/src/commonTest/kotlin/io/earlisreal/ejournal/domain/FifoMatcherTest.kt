@@ -199,4 +199,65 @@ class FifoMatcherTest {
         val symbols = positions.map { it.symbol }.toSet()
         assertEquals(setOf("AAPL", "GOOG"), symbols)
     }
+
+    // --- computeOpenPositions ---
+
+    @Test
+    fun fullyClosedSymbolProducesNoOpenPosition() {
+        val transactions = listOf(
+            tx(Action.BUY,  price = 10.0, shares = 100.0, fees = 0.0, datetime = "2024-01-01T09:00"),
+            tx(Action.SELL, price = 15.0, shares = 100.0, fees = 0.0, datetime = "2024-01-10T09:00"),
+        )
+        assertTrue(FifoMatcher.computeOpenPositions(transactions).isEmpty())
+    }
+
+    @Test
+    fun neverClosedBuyIsAnOpenLongPosition() {
+        // No offsetting sell at all -- computeClosedPositions would drop this entirely (matchedShares == 0).
+        val transactions = listOf(
+            tx(Action.BUY, price = 10.0, shares = 100.0, fees = 0.0, datetime = "2024-01-01T09:00"),
+        )
+        val open = FifoMatcher.computeOpenPositions(transactions)
+        assertEquals(1, open.size)
+        assertEquals(TradeDirection.LONG, open[0].direction)
+        assertEquals(100.0, open[0].shares)
+        assertEquals(10.0, open[0].averagePrice)
+        assertEquals(LocalDateTime.parse("2024-01-01T09:00"), open[0].openDatetime)
+    }
+
+    @Test
+    fun neverClosedSellIsAnOpenShortPosition() {
+        val transactions = listOf(
+            tx(Action.SELL, price = 20.0, shares = 50.0, fees = 0.0, datetime = "2024-01-01T09:00"),
+        )
+        val open = FifoMatcher.computeOpenPositions(transactions)
+        assertEquals(1, open.size)
+        assertEquals(TradeDirection.SHORT, open[0].direction)
+        assertEquals(50.0, open[0].shares)
+    }
+
+    @Test
+    fun partiallyClosedPositionReportsOnlyTheRemainder() {
+        val transactions = listOf(
+            tx(Action.BUY,  price = 10.0, shares = 100.0, fees = 0.0, datetime = "2024-01-01T09:00"),
+            tx(Action.SELL, price = 15.0, shares = 40.0,  fees = 0.0, datetime = "2024-01-05T09:00"),
+        )
+        val open = FifoMatcher.computeOpenPositions(transactions)
+        assertEquals(1, open.size)
+        assertEquals(60.0, open[0].shares)
+        assertEquals(10.0, open[0].averagePrice)
+    }
+
+    @Test
+    fun scaleInsAverageAcrossRemainingLots() {
+        val transactions = listOf(
+            tx(Action.BUY, price = 10.0, shares = 100.0, fees = 0.0, datetime = "2024-01-01T09:00"),
+            tx(Action.BUY, price = 20.0, shares = 100.0, fees = 0.0, datetime = "2024-01-02T09:00"),
+        )
+        val open = FifoMatcher.computeOpenPositions(transactions)
+        assertEquals(1, open.size)
+        assertEquals(200.0, open[0].shares)
+        assertEquals(15.0, open[0].averagePrice) // (10*100 + 20*100) / 200
+        assertEquals(LocalDateTime.parse("2024-01-01T09:00"), open[0].openDatetime) // earliest remaining lot
+    }
 }
