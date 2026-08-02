@@ -32,7 +32,9 @@ import io.earlisreal.ejournal.domain.PositionTagService
 import io.earlisreal.ejournal.domain.analytics.ClosedOption
 import io.earlisreal.ejournal.domain.analytics.MonthlySummary
 import io.earlisreal.ejournal.domain.analytics.RollChain
+import io.earlisreal.ejournal.domain.analytics.UnderlyingExposure
 import io.earlisreal.ejournal.domain.analytics.UnderlyingStat
+import io.earlisreal.ejournal.domain.analytics.WeeklyExposure
 import io.earlisreal.ejournal.domain.marketdata.MarketDataService
 import io.earlisreal.ejournal.domain.model.Market
 import io.earlisreal.ejournal.domain.model.OptionRight
@@ -106,6 +108,58 @@ fun ReportsScreen(
                             ExpiringOptionsTable(
                                 state.expiringOptions,
                                 state.underlyingPrices,
+                                modifier = Modifier.fillMaxWidth().heightIn(max = TABLE_MAX_HEIGHT),
+                            )
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        Text(
+                            "Open risk by underlying",
+                            color = AppTheme.colors.textPrimary,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            "Total open risk: ${plainMoney(state.totalOpenRisk, symbol)}. Equity is mark-to-market value; " +
+                                "short options use strike-based notional (your real commitment if assigned); long options use " +
+                                "premium paid (your real max loss). Rows over ${CONCENTRATION_WARNING_PCT.toInt()}% of total are flagged.",
+                            color = AppTheme.colors.textMuted,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                        if (state.riskByUnderlying.isEmpty()) {
+                            Text(
+                                "No open positions.",
+                                color = AppTheme.colors.textMuted,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        } else {
+                            OpenRiskByUnderlyingTable(
+                                state.riskByUnderlying, state.totalOpenRisk, symbol,
+                                modifier = Modifier.fillMaxWidth().heightIn(max = TABLE_MAX_HEIGHT),
+                            )
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        Text(
+                            "Open risk by expiry week",
+                            color = AppTheme.colors.textPrimary,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            "Options only, grouped by the Monday of their expiry week -- flags weeks where assignment/gap risk is clustered.",
+                            color = AppTheme.colors.textMuted,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                        if (state.riskByExpiryWeek.isEmpty()) {
+                            Text(
+                                "No open option positions.",
+                                color = AppTheme.colors.textMuted,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        } else {
+                            OpenRiskByExpiryWeekTable(
+                                state.riskByExpiryWeek, state.totalOpenRisk, symbol,
                                 modifier = Modifier.fillMaxWidth().heightIn(max = TABLE_MAX_HEIGHT),
                             )
                         }
@@ -268,6 +322,56 @@ private fun ExpiryWindowToggle(window: ExpiryWindow, onChange: (ExpiryWindow) ->
         }
     }
 }
+
+private const val CONCENTRATION_WARNING_PCT = 25.0
+
+/** Unsigned money, e.g. "$6,300.00" -- risk amounts are magnitudes, not signed P&L, so no leading +/−. */
+private fun plainMoney(value: Double, symbol: String): String = "$symbol%,.2f".format(value)
+
+@Composable
+private fun OpenRiskByUnderlyingTable(
+    exposure: List<UnderlyingExposure>,
+    totalRisk: Double,
+    symbol: String,
+    modifier: Modifier = Modifier,
+) {
+    val warnColor = AppTheme.colors.loss
+    DataTable(
+        columns = listOf("Underlying", "Risk", "% of Total", "Positions"),
+        rows = exposure,
+        cells = { e ->
+            listOf(e.root, plainMoney(e.riskAmount, symbol), "%.1f%%".format(pctOf(e.riskAmount, totalRisk)), e.positionCount.toString())
+        },
+        cellColor = { e, i -> if (i <= 2 && pctOf(e.riskAmount, totalRisk) >= CONCENTRATION_WARNING_PCT) warnColor else null },
+        weights = remember { listOf(1.2f, 1f, 1f, 0.8f) },
+        modifier = modifier,
+    )
+}
+
+@Composable
+private fun OpenRiskByExpiryWeekTable(
+    exposure: List<WeeklyExposure>,
+    totalRisk: Double,
+    symbol: String,
+    modifier: Modifier = Modifier,
+) {
+    val warnColor = AppTheme.colors.loss
+    DataTable(
+        columns = listOf("Week Of", "Risk", "% of Total", "Positions"),
+        rows = exposure,
+        cells = { w ->
+            listOf(
+                shortDateWithYear(w.weekStart), plainMoney(w.riskAmount, symbol),
+                "%.1f%%".format(pctOf(w.riskAmount, totalRisk)), w.positionCount.toString(),
+            )
+        },
+        cellColor = { w, i -> if (i <= 2 && pctOf(w.riskAmount, totalRisk) >= CONCENTRATION_WARNING_PCT) warnColor else null },
+        weights = remember { listOf(1.2f, 1f, 1f, 0.8f) },
+        modifier = modifier,
+    )
+}
+
+private fun pctOf(amount: Double, total: Double): Double = if (total > 0) amount / total * 100 else 0.0
 
 /**
  * True if [option] is trending against whoever holds it: in-the-money for a short seller (assignment
