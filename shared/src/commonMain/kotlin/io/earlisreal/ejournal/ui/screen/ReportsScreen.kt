@@ -44,6 +44,7 @@ import io.earlisreal.ejournal.ui.components.ScreenScaffold
 import io.earlisreal.ejournal.ui.components.TagStatsTable
 import io.earlisreal.ejournal.ui.components.monthName
 import io.earlisreal.ejournal.ui.components.shortDate
+import io.earlisreal.ejournal.ui.components.shortDateWithYear
 import io.earlisreal.ejournal.ui.components.signedMoney
 import io.earlisreal.ejournal.ui.shell.FilterState
 import io.earlisreal.ejournal.ui.theme.AppTheme
@@ -390,8 +391,8 @@ private fun RollChainsTable(
                 if (c.right == OptionRight.CALL) "Call" else "Put",
                 if (c.direction == TradeDirection.LONG) "Long" else "Short",
                 c.legs.size.toString(),
-                shortDate(c.firstOpen.date),
-                shortDate(c.latestExpiry),
+                shortDateWithYear(c.firstOpen.date),
+                shortDateWithYear(c.latestExpiry),
                 if (c.isOpen) "Open" else "Closed",
                 underlyingPrices[c.root]?.let { "$%.2f".format(it) } ?: "—",
                 c.strikePath,
@@ -400,7 +401,7 @@ private fun RollChainsTable(
             )
         },
         weights = remember {
-            listOf(0.9f, 0.9f, 0.7f, 0.7f, 0.6f, 0.9f, 0.9f, 0.8f, 0.9f, 1.6f, 0.9f, 0.8f)
+            listOf(0.9f, 0.9f, 0.7f, 0.7f, 0.6f, 1.0f, 1.0f, 0.8f, 0.9f, 1.4f, 0.9f, 0.8f)
         },
         sortedColumn = sortColumn,
         sortAscending = sortAscending,
