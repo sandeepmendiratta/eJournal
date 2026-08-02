@@ -288,7 +288,7 @@ private fun DropZone(
                 color = if (isDragHovered) AppTheme.colors.accent else AppTheme.colors.textPrimary,
             )
             Text(
-                "Accepts broker CSV exports and eToro XLSX statements · drop several at once",
+                "Accepts broker CSV exports, eToro XLSX statements, and Truthifi JSON exports · drop several at once",
                 style = MaterialTheme.typography.labelSmall,
                 color = AppTheme.colors.textMuted,
             )
