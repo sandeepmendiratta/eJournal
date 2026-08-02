@@ -4,6 +4,7 @@ import io.earlisreal.ejournal.data.repository.CredentialsRepository
 import io.earlisreal.ejournal.data.repository.MarketDataRepository
 import io.earlisreal.ejournal.data.repository.PortfolioRepository
 import io.earlisreal.ejournal.domain.ClosedPositionService
+import io.earlisreal.ejournal.domain.OpenPositionService
 import io.earlisreal.ejournal.domain.model.Market
 import kotlin.time.Clock
 import kotlinx.coroutines.CoroutineScope
@@ -47,6 +48,7 @@ sealed class SyncStatus {
 class MarketDataService(
     private val portfolioRepository: PortfolioRepository,
     private val closedPositions: ClosedPositionService,
+    private val openPositions: OpenPositionService,
     private val marketDataRepository: MarketDataRepository,
     private val yahooProvider: MarketDataProvider,
     private val yahooCryptoProvider: MarketDataProvider,
@@ -74,11 +76,11 @@ class MarketDataService(
         val today = todayProvider()
         val hasKeys = credentialsRepository.getAlpacaCredentials() != null
 
-        val positions = portfolioRepository.getAll()
-            .filter { it.market == Market.US_STOCKS || it.market == Market.CRYPTO }
-            .flatMap { closedPositions.forPortfolio(it.id) }
+        val portfolios = portfolioRepository.getAll().filter { it.market == Market.US_STOCKS || it.market == Market.CRYPTO }
+        val positions = portfolios.flatMap { closedPositions.forPortfolio(it.id) }
+        val openPositionsAll = portfolios.flatMap { openPositions.forPortfolio(it.id) }
 
-        val work = requiredRanges(positions, today)
+        val work = (requiredRanges(positions, today) + requiredUnderlyingRanges(openPositionsAll, today))
             .flatMap { range -> subtractCoverage(range, marketDataRepository.getCoverage(range.symbol, range.timeframe, range.market)) }
             .flatMap { range -> route(range, hasKeys) }
             .groupBy { it.range.symbol }
@@ -109,6 +111,20 @@ class MarketDataService(
         )
         _status.value = SyncStatus.Finished(result)
         return result
+    }
+
+    /**
+     * Best-effort current price for [symbol]: a live Alpaca quote if keys are configured (see
+     * [MarketDataProvider.getLatestPrice] -- only [AlpacaProvider] implements it, every other provider's
+     * default returns null so this call is always safe regardless of source), else the latest stored
+     * daily close (populated by [sync] via [requiredUnderlyingRanges] for open positions). Null if
+     * neither is available (no keys yet and nothing synced).
+     */
+    suspend fun currentPrice(symbol: String, market: Market): Double? {
+        alpacaProvider.getLatestPrice(symbol)?.let { return it }
+        val coverage = marketDataRepository.getCoverage(symbol, Timeframe.DAILY, market) ?: return null
+        return marketDataRepository.getBars(symbol, Timeframe.DAILY, market, coverage.last, coverage.last)
+            .lastOrNull()?.close
     }
 
     private suspend fun fetchSymbol(symbol: String, routedRanges: List<RoutedRange>): SymbolFetchResult {

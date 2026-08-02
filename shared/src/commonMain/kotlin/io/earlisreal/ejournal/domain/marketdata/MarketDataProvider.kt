@@ -5,6 +5,9 @@ import kotlinx.datetime.LocalDate
 /** Fetches OHLCV bars for an inclusive day range. Implementations are per data source. */
 interface MarketDataProvider {
     suspend fun getBars(symbol: String, timeframe: Timeframe, from: LocalDate, to: LocalDate): List<Bar>
+
+    /** A live/near-live last-trade price for [symbol], if this provider offers one. Default: unsupported. */
+    suspend fun getLatestPrice(symbol: String): Double? = null
 }
 
 /** The provider rejected our credentials — retrying other symbols would also fail. */

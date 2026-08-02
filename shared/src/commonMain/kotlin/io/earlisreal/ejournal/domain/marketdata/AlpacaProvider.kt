@@ -81,6 +81,23 @@ class AlpacaProvider(
         return bars
     }
 
+    /**
+     * Live last-trade price via Alpaca's latest-trade endpoint (the same one [testConnection] uses to
+     * validate keys) -- IEX feed, so it works on the free tier without a SIP subscription. Returns null
+     * rather than throwing on any failure (no keys, bad symbol, network issue): this is a "nice to have"
+     * enrichment, not something that should fail a report render.
+     */
+    override suspend fun getLatestPrice(symbol: String): Double? {
+        val credentials = credentialsRepository.getAlpacaCredentials() ?: return null
+        val response = runCatching {
+            request(credentials, "$BASE_URL/v2/stocks/$symbol/trades/latest") {
+                parameter("feed", "iex")
+            }
+        }.getOrElse { return null }
+        if (response.status.value >= 400) return null
+        return runCatching { json.decodeFromString<LatestTradeResponse>(response.bodyAsText()).trade.p }.getOrNull()
+    }
+
     /** Lightest authenticated data call — validates keys against the exact API we fetch from. */
     suspend fun testConnection(): ConnectionResult {
         val credentials = credentialsRepository.getAlpacaCredentials() ?: return ConnectionResult.InvalidKeys
@@ -123,6 +140,12 @@ class AlpacaProvider(
             }
         }
     }
+
+    @Serializable
+    private data class LatestTradeResponse(val trade: LatestTrade)
+
+    @Serializable
+    private data class LatestTrade(val p: Double)
 
     @Serializable
     private data class BarsResponse(

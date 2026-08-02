@@ -5,6 +5,8 @@ import io.earlisreal.ejournal.domain.analytics.TradeType
 import io.earlisreal.ejournal.domain.analytics.classifyTradeType
 import io.earlisreal.ejournal.domain.model.ClosedPosition
 import io.earlisreal.ejournal.domain.model.Market
+import io.earlisreal.ejournal.domain.model.OpenPosition
+import io.earlisreal.ejournal.domain.model.parseOccSymbol
 import kotlinx.datetime.DatePeriod
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.minus
@@ -75,6 +77,22 @@ fun requiredRanges(positions: List<ClosedPosition>, today: LocalDate): List<BarR
             )
             TradeType.SWING -> listOf(dailyRange)
         }
+    }
+    return raw
+        .groupBy { Triple(it.symbol, it.timeframe, it.market) }
+        .flatMap { (_, ranges) -> mergeRanges(ranges) }
+}
+
+/**
+ * Daily bars needed for currently-open positions' underlying, so the "current price" fallback (the
+ * latest stored daily close, used when a live Alpaca quote isn't available) has data to read. Option
+ * positions map to their underlying stock root via [parseOccSymbol] -- no provider can chart an
+ * OCC-style symbol directly. Merge this with [requiredRanges]' output before deduping/routing.
+ */
+fun requiredUnderlyingRanges(openPositions: List<OpenPosition>, today: LocalDate): List<BarRange> {
+    val raw = openPositions.map { pos ->
+        val underlying = parseOccSymbol(pos.symbol)?.root ?: pos.symbol
+        BarRange(symbol = underlying, timeframe = Timeframe.DAILY, from = EARLIEST_DAILY, to = today, market = pos.market)
     }
     return raw
         .groupBy { Triple(it.symbol, it.timeframe, it.market) }

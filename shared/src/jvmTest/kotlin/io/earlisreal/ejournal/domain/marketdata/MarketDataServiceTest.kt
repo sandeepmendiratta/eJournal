@@ -8,10 +8,13 @@ import io.earlisreal.ejournal.data.repository.MarketDataRepository
 import io.earlisreal.ejournal.data.repository.PortfolioRepository
 import io.earlisreal.ejournal.data.repository.TransactionRepository
 import io.earlisreal.ejournal.domain.ClosedPositionService
+import io.earlisreal.ejournal.domain.OpenPositionService
 import io.earlisreal.ejournal.domain.model.Action
 import io.earlisreal.ejournal.domain.model.Market
+import io.earlisreal.ejournal.domain.model.OpenPosition
 import io.earlisreal.ejournal.domain.model.Portfolio
 import io.earlisreal.ejournal.domain.model.Transaction
+import io.earlisreal.ejournal.domain.model.TradeDirection
 import kotlinx.coroutines.test.runTest
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
@@ -43,10 +46,11 @@ private class FakeBars : MarketDataRepository {
     val coverage = mutableMapOf<Pair<String, Timeframe>, BarCoverage>()
     override suspend fun upsertBars(market: Market, bars: List<Bar>) { stored.addAll(bars) }
     override suspend fun getCoverage(symbol: String, timeframe: Timeframe, market: Market): BarCoverage? = coverage[symbol to timeframe]
-    override suspend fun getBars(symbol: String, timeframe: Timeframe, market: Market, from: LocalDateTime, to: LocalDateTime) = error("unused")
+    override suspend fun getBars(symbol: String, timeframe: Timeframe, market: Market, from: LocalDateTime, to: LocalDateTime): List<Bar> =
+        stored.filter { it.symbol == symbol && it.timeframe == timeframe && it.timestamp >= from && it.timestamp <= to }
 }
 
-private class FakeProvider : MarketDataProvider {
+private class FakeProvider(var latestPrice: Double? = null) : MarketDataProvider {
     val calls = mutableListOf<BarRange>()
     var attempts = 0
     val failures = ArrayDeque<Exception>()
@@ -62,6 +66,7 @@ private class FakeProvider : MarketDataProvider {
         calls.add(BarRange(symbol, timeframe, from, to))
         return listOf(Bar(symbol, timeframe, from.atTime9_30(), 1.0, 2.0, 0.5, 1.5, 100L))
     }
+    override suspend fun getLatestPrice(symbol: String): Double? = latestPrice
     private fun LocalDate.atTime9_30() = LocalDateTime.parse("${this}T09:30")
 }
 
@@ -97,6 +102,7 @@ class MarketDataServiceTest {
     private fun service(
         portfolios: List<Portfolio> = listOf(usPortfolio()),
         transactions: Map<Long, List<Transaction>> = mapOf(1L to recentDayTrade()),
+        openPositionList: List<OpenPosition> = emptyList(),
         bars: FakeBars = FakeBars(),
         yahoo: FakeProvider = FakeProvider(),
         yahooCrypto: FakeProvider = FakeProvider(),
@@ -106,6 +112,7 @@ class MarketDataServiceTest {
     ) = MarketDataService(
         portfolioRepository = FakePortfolios(portfolios),
         closedPositions = ClosedPositionService(FakeTransactions(transactions), FakePortfolios(portfolios)),
+        openPositions = OpenPositionService(FakeTransactions(emptyMap()), FakePortfolios(portfolios)) { openPositionList },
         marketDataRepository = bars,
         yahooProvider = yahoo,
         yahooCryptoProvider = yahooCrypto,
@@ -322,5 +329,49 @@ class MarketDataServiceTest {
         assertTrue(yahooCrypto.calls.any { it.symbol == "BTC" && it.timeframe == Timeframe.DAILY })
         assertTrue(crypto.calls.isEmpty())
         assertTrue(result.needsKeys)
+    }
+
+    private fun openOption(symbol: String) = OpenPosition(
+        symbol = symbol, direction = TradeDirection.SHORT, shares = 100.0,
+        averagePrice = 1.0, openDatetime = LocalDateTime.parse("2026-01-05T09:31"),
+    )
+
+    @Test
+    fun `sync fetches daily bars for an open option position's underlying`() = runTest {
+        val yahoo = FakeProvider()
+        service(
+            transactions = emptyMap(),
+            openPositionList = listOf(openOption("TNA260731P63")),
+            yahoo = yahoo,
+        ).sync()
+
+        assertTrue(yahoo.calls.any { it.symbol == "TNA" && it.timeframe == Timeframe.DAILY })
+    }
+
+    @Test
+    fun `currentPrice prefers a live Alpaca quote when keys are configured`() = runTest {
+        val alpaca = FakeProvider(latestPrice = 123.45)
+        val bars = FakeBars()
+        val result = service(alpaca = alpaca, bars = bars, creds = FakeCreds(AlpacaCredentials("id", "secret")))
+            .currentPrice("AAPL", Market.US_STOCKS)
+
+        assertEquals(123.45, result)
+    }
+
+    @Test
+    fun `currentPrice falls back to the latest stored daily close without a live quote`() = runTest {
+        val bars = FakeBars()
+        val lastClose = LocalDateTime.parse("2026-06-11T00:00")
+        bars.coverage["AAPL" to Timeframe.DAILY] = BarCoverage(LocalDateTime.parse("2026-06-01T00:00"), lastClose)
+        bars.stored += Bar("AAPL", Timeframe.DAILY, lastClose, 200.0, 205.0, 199.0, 204.5, 1_000L)
+        val result = service(bars = bars).currentPrice("AAPL", Market.US_STOCKS) // no Alpaca keys configured
+
+        assertEquals(204.5, result)
+    }
+
+    @Test
+    fun `currentPrice returns null when neither a live quote nor stored bars are available`() = runTest {
+        val result = service(bars = FakeBars()).currentPrice("AAPL", Market.US_STOCKS)
+        assertEquals(null, result)
     }
 }
