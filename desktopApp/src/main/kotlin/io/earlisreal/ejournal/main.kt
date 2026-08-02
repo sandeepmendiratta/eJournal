@@ -12,6 +12,7 @@ import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import io.earlisreal.ejournal.demo.runCsvGenerator
+import io.earlisreal.ejournal.demo.runTruthifiSync
 import io.earlisreal.ejournal.startup.AsyncInitializer
 import io.earlisreal.ejournal.startup.InitState
 import io.earlisreal.ejournal.startup.buildReadyApp
@@ -25,6 +26,10 @@ fun main(args: Array<String>) {
 
     if (args.firstOrNull() == "generate-csv") {
         runCsvGenerator(args.drop(1).toTypedArray())
+        return
+    }
+    if (args.firstOrNull() == "sync-truthifi") {
+        runTruthifiSync(args.drop(1).toTypedArray())
         return
     }
     application {
