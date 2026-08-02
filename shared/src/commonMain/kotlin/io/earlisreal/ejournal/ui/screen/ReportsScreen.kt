@@ -442,16 +442,25 @@ private fun ClosedOptionsLedgerTable(options: List<ClosedOption>, symbol: String
 
 @Composable
 private fun MonthlySummaryTable(summaries: List<MonthlySummary>, symbol: String, modifier: Modifier = Modifier) {
+    val profitColor = AppTheme.colors.profit
+    val lossColor = AppTheme.colors.loss
     DataTable(
-        columns = listOf("Month", "Net P/L", "Trades"),
+        columns = listOf("Month", "Net P/L", "Equity P/L", "Options P/L", "Trades"),
         rows = summaries,
         cells = { m ->
             listOf(
                 "${monthName(m.month.month)} ${m.month.year}",
                 signedMoney(m.netPnl, symbol),
+                signedMoney(m.equityPnl, symbol),
+                signedMoney(m.optionsPnl, symbol),
                 m.tradeCount.toString(),
             )
         },
+        cellColor = { m, i ->
+            val value = when (i) { 1 -> m.netPnl; 2 -> m.equityPnl; 3 -> m.optionsPnl; else -> null }
+            value?.let { if (it >= 0) profitColor else lossColor }
+        },
+        weights = remember { listOf(1.2f, 1f, 1f, 1f, 0.7f) },
         modifier = modifier.heightIn(max = TABLE_MAX_HEIGHT),
     )
 }
