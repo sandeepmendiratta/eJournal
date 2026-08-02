@@ -82,6 +82,33 @@ fun ReportsScreen(
                     verticalArrangement = Arrangement.spacedBy(Spacing.xl),
                 ) {
                     Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                "Upcoming option expirations",
+                                color = AppTheme.colors.textPrimary,
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            ExpiryWindowToggle(state.expiryWindow, vm::setExpiryWindow)
+                        }
+                        if (state.expiringOptions.isEmpty()) {
+                            Text(
+                                "No open option positions expiring within ${state.expiryWindow.days} days.",
+                                color = AppTheme.colors.textMuted,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                        } else {
+                            ExpiringOptionsTable(
+                                state.expiringOptions,
+                                state.underlyingPrices,
+                                modifier = Modifier.fillMaxWidth().heightIn(max = TABLE_MAX_HEIGHT),
+                            )
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         Text(
                             "Performance by tag",
                             color = AppTheme.colors.textPrimary,
@@ -139,33 +166,6 @@ fun ReportsScreen(
                             )
                         } else {
                             TopUnderlyingsTable(state.topUnderlyings, symbol, modifier = Modifier.fillMaxWidth())
-                        }
-                    }
-
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                "Upcoming option expirations",
-                                color = AppTheme.colors.textPrimary,
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                            ExpiryWindowToggle(state.expiryWindow, vm::setExpiryWindow)
-                        }
-                        if (state.expiringOptions.isEmpty()) {
-                            Text(
-                                "No open option positions expiring within ${state.expiryWindow.days} days.",
-                                color = AppTheme.colors.textMuted,
-                                style = MaterialTheme.typography.labelSmall,
-                            )
-                        } else {
-                            ExpiringOptionsTable(
-                                state.expiringOptions,
-                                state.underlyingPrices,
-                                modifier = Modifier.fillMaxWidth().heightIn(max = TABLE_MAX_HEIGHT),
-                            )
                         }
                     }
 
