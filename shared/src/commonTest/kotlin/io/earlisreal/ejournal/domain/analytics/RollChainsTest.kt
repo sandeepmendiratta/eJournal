@@ -6,6 +6,7 @@ import io.earlisreal.ejournal.domain.model.OptionRight
 import io.earlisreal.ejournal.domain.model.TradeDirection
 import kotlinx.datetime.LocalDate
 import kotlinx.datetime.LocalDateTime
+import kotlinx.datetime.daysUntil
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -102,6 +103,24 @@ class RollChainsTest {
         assertEquals(true, chain.isOpen)
         assertEquals(50.0, chain.realizedPnl) // only the closed leg counts
         assertEquals(null, chain.legs.last().exitDatetime)
+    }
+
+    @Test
+    fun openFinalLegPastExpiryIsTreatedAsClosed() {
+        // Fidelity never records a closing transaction for an expired-worthless or assigned/exercised
+        // leg, so a still-unmatched final leg only means "open" while its expiry hasn't passed yet.
+        val laterToday = LocalDate.parse("2026-09-01")
+        val expiry = LocalDate.parse("2026-08-14")
+        val chains = detectRollChains(
+            closed = listOf(closed("TNA260731P63", "2026-07-01T09:30", "2026-07-15T09:30", pnl = 50.0)),
+            open = listOf(open("TNA260814P60", "2026-07-16T09:30")),
+            today = laterToday,
+        )
+        val chain = chains.single()
+        assertEquals(false, chain.isOpen)
+        assertEquals(50.0, chain.realizedPnl) // the expired leg still contributes no realized P/L
+        // daysRunning freezes at expiry, not laterToday -- measured from the chain's first leg's entry
+        assertEquals(LocalDate.parse("2026-07-01").daysUntil(expiry), chain.daysRunning)
     }
 
     @Test
