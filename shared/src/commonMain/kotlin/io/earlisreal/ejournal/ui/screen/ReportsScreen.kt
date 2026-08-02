@@ -4,14 +4,20 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -86,18 +93,11 @@ fun ReportsScreen(
                     Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(Spacing.xl),
                 ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                "Upcoming option expirations",
-                                color = AppTheme.colors.textPrimary,
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                            ExpiryWindowToggle(state.expiryWindow, vm::setExpiryWindow)
-                        }
+                    CollapsibleSection(
+                        title = "Upcoming option expirations",
+                        initiallyExpanded = true,
+                        headerTrailing = { ExpiryWindowToggle(state.expiryWindow, vm::setExpiryWindow) },
+                    ) {
                         if (state.expiringOptions.isEmpty()) {
                             Text(
                                 "No open option positions expiring within ${state.expiryWindow.days} days.",
@@ -113,12 +113,7 @@ fun ReportsScreen(
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        Text(
-                            "Open risk by underlying",
-                            color = AppTheme.colors.textPrimary,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                    CollapsibleSection(title = "Open risk by underlying", initiallyExpanded = true) {
                         Text(
                             "Total open risk: ${plainMoney(state.totalOpenRisk, symbol)}. Equity is mark-to-market value; " +
                                 "short options use strike-based notional (your real commitment if assigned); long options use " +
@@ -140,12 +135,7 @@ fun ReportsScreen(
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        Text(
-                            "Open risk by expiry week",
-                            color = AppTheme.colors.textPrimary,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                    CollapsibleSection(title = "Open risk by expiry week", initiallyExpanded = true) {
                         Text(
                             "Options only, grouped by the Monday of their expiry week -- flags weeks where assignment/gap risk is clustered.",
                             color = AppTheme.colors.textMuted,
@@ -165,12 +155,7 @@ fun ReportsScreen(
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        Text(
-                            "Performance by tag",
-                            color = AppTheme.colors.textPrimary,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                    CollapsibleSection(title = "Performance by tag", initiallyExpanded = false) {
                         if (state.stats.isEmpty()) {
                             Text(
                                 "No closed positions in this range. Adjust the date range or segment in the top bar.",
@@ -192,12 +177,7 @@ fun ReportsScreen(
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        Text(
-                            "Monthly realized P&L",
-                            color = AppTheme.colors.textPrimary,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                    CollapsibleSection(title = "Monthly realized P&L", initiallyExpanded = false) {
                         if (state.monthlySummaries.isEmpty()) {
                             Text(
                                 "No closed positions in this range.",
@@ -209,12 +189,7 @@ fun ReportsScreen(
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        Text(
-                            "Top underlyings by realized P&L",
-                            color = AppTheme.colors.textPrimary,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                    CollapsibleSection(title = "Top underlyings by realized P&L", initiallyExpanded = false) {
                         if (state.topUnderlyings.isEmpty()) {
                             Text(
                                 "No closed positions in this range.",
@@ -226,22 +201,14 @@ fun ReportsScreen(
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        var chainFilter by remember { mutableStateOf(RollChainFilter.ALL) }
-                        var sortColumn by remember { mutableStateOf<Int?>(ROLL_CHAIN_FIRST_OPEN_COLUMN) }
-                        var sortAscending by remember { mutableStateOf(true) }
-
-                        Row(
-                            Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                        ) {
-                            Text(
-                                "Roll chains",
-                                color = AppTheme.colors.textPrimary,
-                                style = MaterialTheme.typography.titleMedium,
-                            )
-                            RollChainFilterToggle(chainFilter) { chainFilter = it }
-                        }
+                    var chainFilter by remember { mutableStateOf(RollChainFilter.ALL) }
+                    var sortColumn by remember { mutableStateOf<Int?>(ROLL_CHAIN_FIRST_OPEN_COLUMN) }
+                    var sortAscending by remember { mutableStateOf(true) }
+                    CollapsibleSection(
+                        title = "Roll chains",
+                        initiallyExpanded = false,
+                        headerTrailing = { RollChainFilterToggle(chainFilter) { chainFilter = it } },
+                    ) {
                         Text(
                             "Sequences of 2+ option legs on the same underlying/side where a close was followed by a near-day reopen -- inferred from timing, not broker-labeled, so double-check anything surprising. Click a column to sort.",
                             color = AppTheme.colors.textMuted,
@@ -277,25 +244,77 @@ fun ReportsScreen(
                         }
                     }
 
-                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        Text(
-                            "Closed options ledger",
-                            color = AppTheme.colors.textPrimary,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        if (state.closedOptions.isEmpty()) {
+                    var ledgerYear by remember { mutableStateOf<Int?>(null) }
+                    val ledgerYears = remember(state.closedOptions) {
+                        state.closedOptions.map { it.position.exitDatetime.date.year }.distinct().sortedDescending()
+                    }
+                    CollapsibleSection(
+                        title = "Closed options ledger",
+                        initiallyExpanded = false,
+                        headerTrailing = {
+                            if (ledgerYears.size > 1) YearFilterToggle(ledgerYear, ledgerYears) { ledgerYear = it }
+                        },
+                    ) {
+                        val yearFiltered = remember(state.closedOptions, ledgerYear) {
+                            if (ledgerYear == null) state.closedOptions
+                            else state.closedOptions.filter { it.position.exitDatetime.date.year == ledgerYear }
+                        }
+                        if (yearFiltered.isEmpty()) {
                             Text(
-                                "No closed option positions in this range.",
+                                if (state.closedOptions.isEmpty()) "No closed option positions in this range."
+                                else "No closed option positions in $ledgerYear.",
                                 color = AppTheme.colors.textMuted,
                                 style = MaterialTheme.typography.labelSmall,
                             )
                         } else {
-                            ClosedOptionsLedgerTable(state.closedOptions, symbol, modifier = Modifier.fillMaxWidth())
+                            ClosedOptionsLedgerTable(yearFiltered, symbol, modifier = Modifier.fillMaxWidth())
                         }
                     }
                 }
             }
         }
+    }
+}
+
+/**
+ * A titled, collapsible block -- the whole point is to shorten Reports' page-level scroll: the screen
+ * has grown to 8 sections, so everything expanded by default meant reaching the last one took a lot of
+ * scrolling past sections you may not check daily. [initiallyExpanded] only sets the starting state, not
+ * a fixed one -- click the header (or chevron) to toggle. [headerTrailing] renders next to the chevron,
+ * for a section's own filter/sort controls (e.g. [ExpiryWindowToggle]) -- it stays clickable independent
+ * of the header's own collapse toggle since Compose resolves taps to the innermost clickable first.
+ */
+@Composable
+private fun CollapsibleSection(
+    title: String,
+    initiallyExpanded: Boolean,
+    modifier: Modifier = Modifier,
+    headerTrailing: @Composable () -> Unit = {},
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    var expanded by remember { mutableStateOf(initiallyExpanded) }
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Row(
+            Modifier.fillMaxWidth().clickable { expanded = !expanded },
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                Icon(
+                    imageVector = if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                    contentDescription = if (expanded) "Collapse section" else "Expand section",
+                    tint = AppTheme.colors.textMuted,
+                    modifier = Modifier.size(20.dp),
+                )
+                Text(
+                    title,
+                    color = AppTheme.colors.textPrimary,
+                    style = MaterialTheme.typography.titleMedium,
+                )
+            }
+            headerTrailing()
+        }
+        if (expanded) content()
     }
 }
 
@@ -440,6 +459,33 @@ private fun RollChainFilterToggle(filter: RollChainFilter, onChange: (RollChainF
             )
         }
     }
+}
+
+@Composable
+private fun YearFilterToggle(selected: Int?, years: List<Int>, onChange: (Int?) -> Unit) {
+    Row(
+        modifier = Modifier
+            .clip(PillShape)
+            .background(AppTheme.colors.surfaceElevated),
+    ) {
+        YearChip("All", selected == null) { onChange(null) }
+        years.forEach { year -> YearChip(year.toString(), selected == year) { onChange(year) } }
+    }
+}
+
+@Composable
+private fun YearChip(label: String, active: Boolean, onClick: () -> Unit) {
+    Text(
+        text = label,
+        color = if (active) AppTheme.colors.onAccent else AppTheme.colors.textMuted,
+        fontWeight = if (active) FontWeight.SemiBold else FontWeight.Normal,
+        style = MaterialTheme.typography.labelMedium,
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (active) AppTheme.colors.accent else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+    )
 }
 
 /** Column order must match [RollChainsTable]'s `columns` list -- indices below are what [onSort] receives. */
