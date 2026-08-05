@@ -143,8 +143,8 @@ fun ImportScreen(
                     modifier = Modifier.align(Alignment.End),
                 )
             } else {
-                // Empty state: drop zone + browse, plus the optional broker-sync card.
-                if (tradeZeroConfigured) SectionLabel("From CSV file")
+                // Empty state: drop zone + browse, plus the broker-sync card(s).
+                SectionLabel("From CSV file")
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                     verticalAlignment = Alignment.CenterVertically,
@@ -170,6 +170,7 @@ fun ImportScreen(
                     )
                 }
 
+                SectionLabel("From broker")
                 if (tradeZeroConfigured) {
                     TradeZeroSection(
                         portfolioId = portfolio.id,
@@ -179,6 +180,10 @@ fun ImportScreen(
                         onImportSuccess = onImportSuccess,
                     )
                 }
+                TruthifiSyncSection(
+                    status = state.status,
+                    onSync = { vm.importTruthifiSync(portfolio.id, portfolio.market, onImportSuccess) },
+                )
             }
         }
     }
@@ -304,7 +309,7 @@ private fun DropZone(
     }
 }
 
-/** The "From broker" Trade Zero sync card (only shown when Trade Zero credentials are configured). */
+/** Trade Zero sync card, under the "From broker" label (only shown when Trade Zero credentials are configured). */
 @Composable
 private fun TradeZeroSection(
     portfolioId: Long,
@@ -317,7 +322,6 @@ private fun TradeZeroSection(
     var result by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
-    SectionLabel("From broker")
     AppCard {
         Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             Text(
@@ -371,6 +375,36 @@ private fun TradeZeroSection(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
+        }
+    }
+}
+
+/**
+ * Truthifi sync card, under the "From broker" label. Truthifi is MCP-only -- reachable only from a
+ * Claude chat session, never from this standalone app -- so this can't fetch anything itself. It
+ * imports whatever Claude last wrote to the fixed sync file: ask Claude to sync, then click here.
+ */
+@Composable
+private fun TruthifiSyncSection(status: ImportStatus, onSync: () -> Unit) {
+    SectionLabel("From broker")
+    AppCard {
+        Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Text(
+                "Truthifi",
+                color = AppTheme.colors.textPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+            )
+            Text(
+                "Imports the transactions Claude last pulled from Truthifi. Ask Claude to sync first, then click here to bring them in.",
+                color = AppTheme.colors.textMuted,
+                style = MaterialTheme.typography.bodySmall,
+            )
+            AppSecondaryButton(
+                text = if (status is ImportStatus.Importing) "Importing…" else "Import Truthifi Sync",
+                enabled = status !is ImportStatus.Importing,
+                onClick = onSync,
+            )
         }
     }
 }

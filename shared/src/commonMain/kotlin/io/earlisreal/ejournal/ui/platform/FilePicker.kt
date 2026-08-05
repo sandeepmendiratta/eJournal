@@ -11,3 +11,11 @@ package io.earlisreal.ejournal.ui.platform
  * coroutine.
  */
 expect suspend fun pickImportFiles(): List<ByteArray>
+
+/**
+ * Reads the fixed Truthifi sync file (`~/.ejournal/truthifi-sync.json`), or null if it doesn't exist.
+ * Written externally -- Claude fetches fresh transactions and writes them there whenever a sync is
+ * asked for; this just reads whatever's currently there, so the app never talks to Truthifi itself
+ * (it's MCP-only, reachable only from a chat session).
+ */
+expect suspend fun readTruthifiSyncFile(): ByteArray?

@@ -5,6 +5,7 @@ import io.github.vinceglb.filekit.dialogs.FileKitMode
 import io.github.vinceglb.filekit.dialogs.FileKitType
 import io.github.vinceglb.filekit.dialogs.openFilePicker
 import io.github.vinceglb.filekit.readBytes
+import java.io.File
 
 /**
  * FileKit opens the modern native open-file dialog per OS — NSOpenPanel on macOS and the Win32 COM
@@ -26,4 +27,10 @@ actual suspend fun pickImportFiles(): List<ByteArray> {
 
     // readBytes() is a suspend reader; skip files that fail to read rather than aborting the import.
     return files.mapNotNull { file -> runCatching { file.readBytes() }.getOrNull() }
+}
+
+actual suspend fun readTruthifiSyncFile(): ByteArray? {
+    val file = File(System.getProperty("user.home"), ".ejournal/truthifi-sync.json")
+    if (!file.exists()) return null
+    return runCatching { file.readBytes() }.getOrNull()
 }
