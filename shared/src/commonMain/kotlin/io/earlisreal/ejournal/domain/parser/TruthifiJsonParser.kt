@@ -25,7 +25,9 @@ import kotlin.math.abs
  * Option legs use Truthifi's standard fixed-width, space-padded OCC symbol (e.g.
  * `"NVDA  270115C00100000"` = root, YYMMDD, C/P, strike*1000), converted to this app's compact OCC form
  * (`"NVDA270115C100"`) so [io.earlisreal.ejournal.domain.model.assetClassOf]/[io.earlisreal.ejournal.domain.model.parseOccSymbol]
- * and every options report work identically regardless of source.
+ * and every options report work identically regardless of source. Truthifi's `quantity` for an option row
+ * is a contract count (e.g. `1`), not shares -- scaled by 100 in [parse] to match [Transaction.shares]'s
+ * convention everywhere else in the app (FIFO matching, `closedOptionsLedger`, open risk, roll chains).
  */
 class TruthifiJsonParser : TransactionParser {
     override val brokerName = "Truthifi"
@@ -63,7 +65,10 @@ class TruthifiJsonParser : TransactionParser {
                 val qty = row.quantity ?: return@runCatching null
                 val price = row.price ?: return@runCatching null
                 val datetime = LocalDateTime(LocalDate.parse(row.date), LocalTime(0, 0))
-                val shares = abs(qty)
+                // Truthifi reports option quantity in contracts; every other parser (and the rest of this
+                // app -- FifoMatcher, closedOptionsLedger's contracts = shares / 100, open-risk notional,
+                // roll chains) assumes shares == contracts * 100, matching FidelityCsvParser's convention.
+                val shares = abs(qty) * if (security?.securityType == "option") 100.0 else 1.0
                 Transaction(
                     id = 0L, portfolioId = portfolioId, symbol = symbol, datetime = datetime,
                     action = dir, price = price, shares = shares, fees = row.fees ?: 0.0,

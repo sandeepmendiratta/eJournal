@@ -97,6 +97,25 @@ class TruthifiJsonParserTest {
     }
 
     @Test
+    fun optionQuantityIsContractsScaledToSharesLikeEveryOtherParser() {
+        // Truthifi's quantity for an option row is a contract count, not shares -- FifoMatcher,
+        // closedOptionsLedger (contracts = shares / 100), open risk, and roll chains all assume
+        // shares == contracts * 100, the same convention FidelityCsvParser already uses.
+        val tx = parser.parse(json(optionSellToOpen), portfolioId).transactions.single()
+        assertEquals(100.0, tx.shares) // 1 contract, not the raw quantity:1
+    }
+
+    @Test
+    fun multiContractOptionQuantityScalesCorrectly() {
+        val threeContracts = """
+            {"date":"2026-07-31","transactionType":"sell_to_open","quantity":3,"price":6.72,"fees":2.04,
+             "security":{"securityType":"option","handle":{"symbol":"RDDT  270115P00095000"}}}
+        """.trimIndent()
+        val tx = parser.parse(json(threeContracts), portfolioId).transactions.single()
+        assertEquals(300.0, tx.shares)
+    }
+
+    @Test
     fun nonTradeTransactionTypesAreSkipped() {
         val r = parser.parse(json(equityBuy, dividend), portfolioId)
         assertEquals(1, r.transactions.size)
