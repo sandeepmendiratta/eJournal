@@ -82,6 +82,14 @@ eJournal is a Kotlin Multiplatform project targeting Desktop (JVM only). Buildin
 ./gradlew build                      # full build
 ```
 
+> **macOS: "Unable to locate a Java Runtime"?** The `gradlew` wrapper script itself needs *some* JVM on `PATH` before it can start Gradle and auto-provision the JDK 25 toolchain — foojay can't help if there's no system JDK at all to bootstrap from. Install one via Homebrew and point `JAVA_HOME` at it for the current shell:
+> ```bash
+> brew install openjdk@25
+> export JAVA_HOME=/usr/local/opt/openjdk@25/libexec/openjdk.jdk/Contents/Home
+> export PATH="$JAVA_HOME/bin:$PATH"
+> ```
+> Add those two `export` lines to `~/.zshrc` to make them permanent, then `./gradlew` commands work in any new terminal without repeating the setup.
+
 Almost all code lives in [`shared/`](./shared/src) (UI + business logic); [`desktopApp/`](./desktopApp/src) is a thin launcher. See [`CLAUDE.md`](./CLAUDE.md) for architecture notes.
 
 Learn more about [Kotlin Multiplatform](https://www.jetbrains.com/help/kotlin-multiplatform-dev/get-started.html) and [Compose Multiplatform](https://www.jetbrains.com/compose-multiplatform/).
