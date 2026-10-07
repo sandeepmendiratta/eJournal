@@ -10,11 +10,16 @@ import io.earlisreal.ejournal.domain.analytics.MonthlySummary
 import io.earlisreal.ejournal.domain.analytics.RollChain
 import io.earlisreal.ejournal.domain.analytics.Segment
 import io.earlisreal.ejournal.domain.analytics.TagStat
+import io.earlisreal.ejournal.domain.analytics.UnderlyingExposure
 import io.earlisreal.ejournal.domain.analytics.UnderlyingStat
+import io.earlisreal.ejournal.domain.analytics.WeeklyExposure
 import io.earlisreal.ejournal.domain.analytics.closedOptionsLedger
 import io.earlisreal.ejournal.domain.analytics.detectRollChains
+import io.earlisreal.ejournal.domain.analytics.exposureByExpiryWeek
+import io.earlisreal.ejournal.domain.analytics.exposureByUnderlying
 import io.earlisreal.ejournal.domain.analytics.filterPositions
 import io.earlisreal.ejournal.domain.analytics.monthlySummaries
+import io.earlisreal.ejournal.domain.analytics.openRisk
 import io.earlisreal.ejournal.domain.analytics.tagStats
 import io.earlisreal.ejournal.domain.analytics.underlyingStats
 import io.earlisreal.ejournal.domain.marketdata.MarketDataService
@@ -67,6 +72,9 @@ data class ReportsState(
     val rollChains: List<RollChain> = emptyList(),
     /** Best-effort current price per underlying root (see [MarketDataService.currentPrice]); missing entries are unavailable, not zero. */
     val underlyingPrices: Map<String, Double> = emptyMap(),
+    val riskByUnderlying: List<UnderlyingExposure> = emptyList(),
+    val riskByExpiryWeek: List<WeeklyExposure> = emptyList(),
+    val totalOpenRisk: Double = 0.0,
     val loading: Boolean = false,
 )
 
@@ -123,11 +131,19 @@ class ReportsViewModel(
             // of its legs falls outside the selected date range) plus all currently-open option positions.
             val rollChains = detectRollChains(positions, open, todayDate)
 
-            val underlyingRoots = (allExpiringOptions.map { it.root } + rollChains.map { it.root }).toSet()
+            // Open risk needs a price for every open position's root, not just the ones already covered
+            // by expiring options/roll chains -- a pure equity holding with no option activity otherwise
+            // wouldn't get a quote at all.
+            val underlyingRoots = (
+                allExpiringOptions.map { it.root } + rollChains.map { it.root } +
+                    open.map { pos -> parseOccSymbol(pos.symbol)?.root ?: pos.symbol }
+                ).toSet()
             val prices = coroutineScope {
                 underlyingRoots.associateWith { root -> async { marketDataService.currentPrice(root, market) } }
                     .mapValues { it.value.await() }
             }.filterValues { it != null }.mapValues { it.value as Double }
+
+            val risks = openRisk(open, prices, todayDate)
 
             _state.value = _state.value.copy(
                 stats = tagStats(filtered),
@@ -137,6 +153,9 @@ class ReportsViewModel(
                 topUnderlyings = underlyingStats(filtered).take(TOP_UNDERLYINGS_LIMIT),
                 rollChains = rollChains,
                 underlyingPrices = prices,
+                riskByUnderlying = exposureByUnderlying(risks),
+                riskByExpiryWeek = exposureByExpiryWeek(risks),
+                totalOpenRisk = risks.sumOf { it.riskAmount },
                 loading = false,
             )
         }

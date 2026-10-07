@@ -38,6 +38,7 @@ import io.earlisreal.ejournal.domain.parser.SchwabCsvParser
 import io.earlisreal.ejournal.domain.parser.TastytradeCsvParser
 import io.earlisreal.ejournal.domain.parser.TradeZeroCsvParser
 import io.earlisreal.ejournal.domain.parser.TransactionParser
+import io.earlisreal.ejournal.domain.parser.TruthifiJsonParser
 import io.earlisreal.ejournal.domain.parser.WebullCsvParser
 import io.earlisreal.ejournal.domain.tradezero.TradeZeroClient
 import io.earlisreal.ejournal.domain.tradezero.TradeZeroClientImpl
@@ -76,6 +77,7 @@ class AppDependencies {
         IbkrCsvParser(),
         TastytradeCsvParser(),
         EtoroXlsxParser(),
+        TruthifiJsonParser(),
         GenericCsvParser(),
     )
 

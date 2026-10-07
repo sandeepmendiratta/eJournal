@@ -81,5 +81,23 @@ class MonthlySummaryTest {
         val march = summaries.single()
         assertEquals(2, march.tradeCount)
         assertEquals(30.0, march.netPnl)
+        assertEquals(10.0, march.equityPnl)
+        assertEquals(20.0, march.optionsPnl)
+    }
+
+    @Test
+    fun equityAndOptionsPnlSplitIndependentlyOfSign() {
+        val summaries = monthlySummaries(
+            listOf(
+                pos("AAPL", "2026-03-01T09:00", -15.0),
+                pos("MSFT", "2026-03-02T09:00", 5.0),
+                pos("TNA260731P63", "2026-03-05T09:00", 40.0),
+                pos("TNA260814C60", "2026-03-06T09:00", -10.0),
+            ),
+        )
+        val march = summaries.single()
+        assertEquals(-10.0, march.equityPnl)
+        assertEquals(30.0, march.optionsPnl)
+        assertEquals(20.0, march.netPnl)
     }
 }

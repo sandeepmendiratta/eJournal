@@ -23,6 +23,10 @@ fun longDate(date: LocalDate): String = "${monthName(date.monthNumber)} ${date.d
 /** Compact date label, e.g. "Jun 18". */
 fun shortDate(date: LocalDate): String = "${MONTHS_SHORT[date.monthNumber - 1]} ${date.dayOfMonth}"
 
+/** Compact date label with a 2-digit year, e.g. "Jun 18 '26" -- for views that can span multiple years. */
+fun shortDateWithYear(date: LocalDate): String =
+    "${shortDate(date)} '${(date.year % 100).toString().padStart(2, '0')}"
+
 /**
  * Adaptive duration label from a second count: "2d 4h", "3h 12m 5s", "12m 30s", or "45s".
  * Sub-day holds include seconds; multi-day holds collapse to days/hours.

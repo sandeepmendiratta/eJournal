@@ -83,11 +83,17 @@ fun detectRollChains(
                 val ordinal = (chainCounters[idPrefix] ?: 0) + 1
                 chainCounters[idPrefix] = ordinal
                 val legs = accumulator.map { RollLeg(it.symbol, it.strike, it.expiry, it.entry, it.exit, it.pnl) }
-                val lastActivity = legs.last().exitDatetime?.date ?: today
+                val lastLeg = legs.last()
+                // No closing transaction doesn't mean still open -- Fidelity never records one for an
+                // expired-worthless or assigned/exercised leg (matches how closedOptionsLedger already
+                // treats those). Once expiry has passed there's nothing left to roll, so it's done
+                // either way; daysRunning freezes at expiry instead of ticking up forever unclosed.
+                val stillOpen = lastLeg.exitDatetime == null && lastLeg.expiry >= today
+                val lastActivity = lastLeg.exitDatetime?.date ?: minOf(lastLeg.expiry, today)
                 chains += RollChain(
                     id = "$idPrefix${ordinal.toString().padStart(2, '0')}",
                     root = root, right = right, direction = direction, legs = legs,
-                    isOpen = legs.last().exitDatetime == null,
+                    isOpen = stillOpen,
                     realizedPnl = legs.mapNotNull { it.profitLoss }.sum(),
                     daysRunning = legs.first().entryDatetime.date.daysUntil(lastActivity),
                 )

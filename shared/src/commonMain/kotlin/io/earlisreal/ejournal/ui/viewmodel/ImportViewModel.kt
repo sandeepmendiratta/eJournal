@@ -8,6 +8,7 @@ import io.earlisreal.ejournal.domain.model.Market
 import io.earlisreal.ejournal.domain.model.Transaction
 import io.earlisreal.ejournal.domain.parser.TransactionParser
 import io.earlisreal.ejournal.domain.tradezero.TradeZeroSettings
+import io.earlisreal.ejournal.ui.platform.readTruthifiSyncFile
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -120,6 +121,42 @@ class ImportViewModel(
                 _state.value = _state.value.copy(
                     status = ImportStatus.Error(e.message ?: "Import failed")
                 )
+            }
+        }
+    }
+
+    /**
+     * Imports whatever's currently at the fixed Truthifi sync file path (see [readTruthifiSyncFile]).
+     * Unlike [parseFiles]/[import], this skips the preview step and inserts immediately -- the whole
+     * point of a one-click sync button is no extra step, and the file is already a trusted, scoped
+     * source (Claude only ever writes there on request).
+     */
+    fun importTruthifiSync(portfolioId: Long, market: Market, onSuccess: () -> Unit) {
+        _state.value = _state.value.copy(status = ImportStatus.Importing)
+        viewModelScope.launch {
+            val bytes = readTruthifiSyncFile()
+            if (bytes == null) {
+                _state.value = _state.value.copy(
+                    status = ImportStatus.Error("No Truthifi sync file found — ask Claude to sync first."),
+                )
+                return@launch
+            }
+            val result = parseImportFiles(listOf(bytes), parsers, override = null, portfolioId, market)
+            if (result.transactions.isEmpty()) {
+                _state.value = _state.value.copy(
+                    status = ImportStatus.Error(
+                        if (result.unrecognizedFiles > 0) "Truthifi sync file wasn't recognized."
+                        else "No new transactions in the Truthifi sync file.",
+                    ),
+                )
+                return@launch
+            }
+            try {
+                val inserted = result.transactions.count { transactionRepository.insert(it) != null }
+                _state.value = _state.value.copy(status = ImportStatus.Success(inserted))
+                onSuccess()
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(status = ImportStatus.Error(e.message ?: "Sync import failed"))
             }
         }
     }
