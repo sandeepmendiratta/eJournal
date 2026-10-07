@@ -28,6 +28,15 @@ import kotlin.math.abs
  * and every options report work identically regardless of source. Truthifi's `quantity` for an option row
  * is a contract count (e.g. `1`), not shares -- scaled by 100 in [parse] to match [Transaction.shares]'s
  * convention everywhere else in the app (FIFO matching, `closedOptionsLedger`, open risk, roll chains).
+ *
+ * The [NaturalKeyFactory] prefix below is `"fidelity"`, not `"truthifi"`: Truthifi is just an alternate
+ * ingestion path for the same Fidelity account [FidelityCsvParser] reads via CSV (see the
+ * `CASH_SWEEP_TYPES` comment below -- this parser is already Fidelity-specific in its filtering logic).
+ * Using the real broker name here means a trade imported via either path produces the identical
+ * `externalId`, so the DB's uniqueness constraint catches cross-path re-imports as duplicates the same
+ * way it already catches re-imports within one path. A distinct `"truthifi"` prefix would silently let
+ * the same trade be inserted twice if the user ever imports both a Truthifi sync and a manual Fidelity
+ * CSV covering overlapping dates.
  */
 class TruthifiJsonParser : TransactionParser {
     override val brokerName = "Truthifi"
@@ -49,7 +58,7 @@ class TruthifiJsonParser : TransactionParser {
 
     override fun parse(content: ByteArray, portfolioId: Long): ParseResult {
         val rows = decode(content) ?: return ParseResult(emptyList())
-        val keys = NaturalKeyFactory("truthifi")
+        val keys = NaturalKeyFactory("fidelity")
         val txns = mutableListOf<Transaction>()
         var nonTrade = 0
         var unparsed = 0

@@ -143,8 +143,30 @@ class TruthifiJsonParserTest {
 
     @Test
     fun buildsExternalId() {
+        // Prefix is "fidelity", not "truthifi": Truthifi is just an alternate ingestion path for the
+        // same Fidelity account FidelityCsvParser reads via CSV. See dedupesAgainstFidelityCsvImport
+        // below for why this specific prefix choice matters.
         val tx = parser.parse(json(equityBuy), portfolioId).transactions.single()
-        assertEquals("truthifi:AMZU:2026-07-31T00:00:00:BUY:100.0#0", tx.externalId)
+        assertEquals("fidelity:AMZU:2026-07-31T00:00:00:BUY:100.0#0", tx.externalId)
+    }
+
+    @Test
+    fun dedupesAgainstFidelityCsvImport() {
+        // Regression test for a real incident: syncing Truthifi and later importing an overlapping
+        // Fidelity CSV (or vice versa) must produce the same externalId for the same trade, so the
+        // DB's uniqueness constraint rejects the re-import as a duplicate instead of double-counting it.
+        val truthifiTx = parser.parse(json(equityBuy), portfolioId).transactions.single()
+
+        val fidelityCsv = (
+            "﻿\n\n" +
+                "Run Date,Action,Symbol,Description,Type,Quantity,Price (\$),Commission (\$),Fees (\$)," +
+                "Accrued Interest (\$),Amount (\$),Cash Balance (\$),Settlement Date\n" +
+                "07/31/2026,\"YOU BOUGHT AMAZON.COM INC (AMZU)\",AMZU,\"AMAZON.COM INC\",Cash,100,41.521," +
+                "0.09,,,-" + "4161.19,--,07/31/2026"
+            ).encodeToByteArray()
+        val fidelityTx = FidelityCsvParser().parse(fidelityCsv, portfolioId).transactions.single()
+
+        assertEquals(fidelityTx.externalId, truthifiTx.externalId)
     }
 
     @Test
